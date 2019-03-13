@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS yury_zenin
 (
-    timestamp UInt64
+    timestamp Decimal(16,6),
     referer String,
     location String,
     remoteHost String,
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS yury_zenin
     pageViewId String,
     eventType String,
     item_id String,
-    item_price String,
+    item_price Decimal(16,6),
     item_url String,
     basket_price String,
     detectedDuplicate UInt8,

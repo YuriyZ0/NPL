@@ -42,32 +42,28 @@ def put_data_to_ch():
            continue
 
        print(f)
-       proc_cat = Popen("hdfs dfs -cat {}".format(f.decode("utf-8")), shell=True, stdout=PIPE, stderr=PIPE)
+
+       proc_cat = Popen("hdfs dfs -cat {} >  /tmp/file.json".format(f.decode("utf-8")), shell=True, stdout=PIPE, stderr=PIPE)
        proc_cat.wait()
        stdout_cat, stderr_cat = proc_cat.communicate()
        if proc_cat.returncode:
            print(stderr_cat)
            return 1
 
-       try:
-           json_obj=json.loads(stdout_cat.decode("utf-8"))
-       except:
-           print('Это не json')
-           continue
-       print('На входе:{}'.format(json_obj))
+       print("hdfs_cat_done")
+       local_file=open("/tmp/file.json","r")
+       r =  local_file.read().replace("'",'"')
+       local_file.close()
 
-       for field in json_obj:
-           if type(json_obj[field]) == type(True):
-                json_obj[field] = 1 if json_obj[field]==True else 0
-           elif field == "timestamp":
-                pass
-           elif type(json_obj[field]) is not str:
-                json_obj[field] =  str(json_obj[field])
-       print('После приведения типов:{}'.format(json_obj))
+       local_file=open("/tmp/file.json","w")
+       local_file.truncate(0)
+       local_file.write(r)
+       local_file.close()
 
 
-       cmd = """echo {s} | clickhouse-client --query='INSERT INTO yury_zenin ({fields})
-                                         FORMAT JSONEachRow'""".format(s=str(json_obj).replace("'",'\\"'), fields=', '.join(json_obj.keys()))
+       cmd = """cat  /tmp/file.json | clickhouse-client --query='INSERT INTO yury_zenin (item_url, basket_price, item_price, detectedDuplicate,
+                        timestamp, remoteHost, pageViewId, sessionId, detectedCorruption, partyId, location, eventType, item_id, referer,
+                        userAgentName, firstInSession) FORMAT JSONEachRow'"""
        print('На CH:{}'.format(cmd))
        proc_ch = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
        proc_ch.wait()
@@ -78,7 +74,7 @@ def put_data_to_ch():
 
        print(stdout_ch)
 
-       proc_stat = Popen("hdfs dfs -rm /opt/gobblin/output/part.task_GobblinKafkaQuickStart_*_0_0.txt || hdfs dfs -touchz {}".format(f.decode("utf-8").replace('/yury.zenin','')), shell=True, stdout=PIPE, s$
+       proc_stat = Popen("hdfs dfs -rm /opt/gobblin/output/part.task_GobblinKafkaQuickStart_*_0_0.txt || hdfs dfs -touchz {}".format(f.decode("utf-8").replace('/yury.zenin','')), shell=True, stdout=PIPE, stderr=PIPE)
        proc_stat.wait()
        stdout_stat, stderr_stat = proc_stat.communicate()
        if proc_stat.returncode:
