@@ -5,7 +5,7 @@ from pyspark.streaming import StreamingContext
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 import pandas as pd
-​
+
 
 os.environ['SPARK_HOME'] = '/usr/hdp/current/spark2-client'
 os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.3.2 pyspark-shell'
@@ -16,8 +16,8 @@ spark = SparkSession.builder \
     .config("spark.sql.shuffle.partitions", 10) \
     .config("spark.default.parallelism", 10) \
     .getOrCreate()
-​
-​
+
+
     #.config("spark.streaming.batch.duration", 10) \
     # для кафки не работает - .config("spark.sql.streaming.schemaInference", True) 
 
@@ -30,11 +30,17 @@ batch_from_kafka = spark \
   .option("endingOffsets", "latest") \
   .load()
 
-batch_from_kafka.select(from_json(batch_from_kafka['value'].cast("String"), schema).alias('parsed')) \
+batch_from_kafka.select(from_json(col('value').cast("String"), schema).alias('parsed')) \
     .select(to_timestamp(col('parsed.timestamp')).alias('ts')) \
     .groupBy(window("ts", "1 hours")) \
     .count() \
     .sort('window')\
+    .show(40, False)
+
+batch_from_kafka.select(from_json(col('value').cast("String"), schema).alias('parsed'), col('timestamp')) \
+    .select(to_timestamp(col('parsed.timestamp')).alias('ts'), col('timestamp')) \
+    .where('ts between "2019-03-20T15:25:00.000Z" and "2019-03-20T15:30:00.000Z"')
+    .sort('timestamp', ascending=False) \
     .show(40, False)
 
 batch_from_kafka.select( col('timestamp')) \
@@ -42,7 +48,6 @@ batch_from_kafka.select( col('timestamp')) \
     .count() \
     .sort('window')\
     .show(40, False)
-
 
 schema = StructType([StructField("item_url", StringType(), True),
     StructField("basket_price", StringType(), True),
@@ -69,12 +74,12 @@ stream_from_kafka = spark \
   .option("startingOffsets", "latest") \
   .option('maxOffsetsPerTrigger', 30000) \
   .load()
-​
-​
+
+
 
 from_kafka_df = stream_from_kafka \
-  .select(from_json(stream_from_kafka['value'].cast("String"), schema).alias('parsed'), 
-         stream_from_kafka['timestamp'].alias('kafka_ts')) \
+  .select(from_json(col('value').cast("String"), schema).alias('parsed'), 
+         col('timestamp').alias('kafka_ts')) \
   .drop('_corrupt_record') \
   .na.drop('all') 
 
@@ -88,19 +93,19 @@ agg_df = from_kafka_df \
       count('timestamp').alias('sales_vol'), 
       count('*').alias('count_all'),
       max('spark_executor_ts').alias('max_spark_executor_ts'),
-      min('kafka_ts').alias('min_kafka_ts'),
+      max('kafka_ts').alias('max_kafka_ts'),
       max(unix_timestamp('spark_executor_ts')-unix_timestamp('kafka_ts')).alias('max_lag')) \
   .select(to_json(struct(col('*'))).alias('value'))
 
 out = agg_df.writeStream \
   .format("kafka") \
   .outputMode("update") \
-  .trigger(processingTime = "15 seconds") \
+  .trigger(processingTime = "5 seconds") \
   .option("kafka.bootstrap.servers", "10.132.0.5:6667") \
   .option("topic", "out.yury.zenin") \
   .option("checkpointLocation", "out.yury.zenin.task9") \
   .start()
-#обязательно для честного запуска:
+
+# обязательно для честного запуска:
 
 out.awaitTermination()
-
