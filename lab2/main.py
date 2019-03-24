@@ -1,53 +1,42 @@
+# -*- coding: utf-8 -*-
+
 import sys, os
 sys.path.insert(0, '/usr/hdp/current/spark2-client/python/lib/pyspark.zip')
 from pyspark.sql import SparkSession
 from pyspark.streaming import StreamingContext
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
-import pandas as pd
+#import pandas as pd
 
 
 os.environ['SPARK_HOME'] = '/usr/hdp/current/spark2-client'
-os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.3.2 pyspark-shell'
+#os.environ['PYSPARK_SUBMIT_ARGS'] = '--packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.3.2 pyspark-shell'
 
 spark = SparkSession.builder \
     .appName("SimpleStreamingApp") \
-    .config("spark.jars", "spark-sql-kafka-0-10_2.11-2.3.2.jar") \
-    .config("spark.sql.shuffle.partitions", 10) \
-    .config("spark.default.parallelism", 10) \
     .getOrCreate()
 
 
+#    .config("spark.sql.shuffle.partitions", 5) \
+#    .config("spark.default.parallelism", 5) \
+
     #.config("spark.streaming.batch.duration", 10) \
-    # для кафки не работает - .config("spark.sql.streaming.schemaInference", True) 
+    # для кафки не работает - .config("spark.sql.streaming.schemaInference", True)
 
-batch_from_kafka = spark \
-  .read \
-  .format("kafka") \
-  .option("kafka.bootstrap.servers", "10.132.0.5:6667") \
-  .option("subscribe", "yury.zenin") \
-  .option("startingOffsets", "earliest") \
-  .option("endingOffsets", "latest") \
-  .load()
+#batch_from_kafka = spark \
+#  .read \
+#  .format("kafka") \
+#  .option("kafka.bootstrap.servers", "10.132.0.5:6667") \
+#  .option("subscribe", "yury.zenin") \
+#  .option("startingOffsets", "earliest") \
+#  .option("endingOffsets", "latest") \
+#  .load()
 
-batch_from_kafka.select(from_json(col('value').cast("String"), schema).alias('parsed')) \
-    .select(to_timestamp(col('parsed.timestamp')).alias('ts')) \
-    .groupBy(window("ts", "1 hours")) \
-    .count() \
-    .sort('window')\
-    .show(40, False)
-
-batch_from_kafka.select(from_json(col('value').cast("String"), schema).alias('parsed'), col('timestamp')) \
-    .select(to_timestamp(col('parsed.timestamp')).alias('ts'), col('timestamp')) \
-    .where('ts between "2019-03-20T15:25:00.000Z" and "2019-03-20T15:30:00.000Z"')
-    .sort('timestamp', ascending=False) \
-    .show(40, False)
-
-batch_from_kafka.select( col('timestamp')) \
-    .groupBy(window("timestamp", "1 hours")) \
-    .count() \
-    .sort('window')\
-    .show(40, False)
+#batch_from_kafka.select( col('timestamp')) \
+#    .groupBy(window("timestamp", "1 hours")) \
+#    .count() \
+#    .sort('window')\
+#    .show(40, False)
 
 schema = StructType([StructField("item_url", StringType(), True),
     StructField("basket_price", StringType(), True),
@@ -100,10 +89,10 @@ agg_df = from_kafka_df \
 out = agg_df.writeStream \
   .format("kafka") \
   .outputMode("update") \
-  .trigger(processingTime = "5 seconds") \
+  .trigger(processingTime = "2 seconds") \
   .option("kafka.bootstrap.servers", "10.132.0.5:6667") \
   .option("topic", "out.yury.zenin") \
-  .option("checkpointLocation", "out.yury.zenin.task9") \
+  .option("checkpointLocation", "out.yury.zenin.task11") \
   .start()
 
 # обязательно для честного запуска:
