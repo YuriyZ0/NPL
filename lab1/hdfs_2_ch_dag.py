@@ -6,12 +6,12 @@ from airflow.operators.python_operator import PythonOperator
 hdfs_path = '/opt/gobblin/output'
 
 args = {
-    'owner': 'airflow',
+    'owner': 'ubuntu',
     'start_date': airflow.utils.dates.days_ago(2),
 }
 
 dag = DAG(
-    dag_id='dag',
+    dag_id='yury.zenin',
     default_args=args,
     catchup = False,
     schedule_interval=timedelta(minutes=15),
@@ -23,12 +23,12 @@ def put_data_to_ch():
     from os.path import basename
     import json
 
-    proc_stat = Popen("hdfs dfs -ls -C /opt/gobblin/output/part.task_GobblinKafkaQuickStart_*_0_0.txt", shell=True, stdout=PIPE, stderr=PIPE)
+    proc_stat = Popen("hdfs dfs -ls -C /opt/gobblin/output/part.task_GobblinKafkaQuickStart_*.txt", shell=True, stdout=PIPE, stderr=PIPE)
     proc_stat.wait()
     stdout_stat, stderr_stat = proc_stat.communicate()
     if proc_stat.returncode:
        print(stderr_stat)
-    print('Последний успешный файл:{}'.format(basename(stdout_stat)))
+    print('РџРѕСЃР»РµРґРЅРёР№ СѓСЃРїРµС€РЅС‹Р№ С„Р°Р№Р»:{}'.format(basename(stdout_stat)))
 
     proc_ls = Popen("hdfs dfs -ls -C /opt/gobblin/output/yury.zenin", shell=True, stdout=PIPE, stderr=PIPE)
     proc_ls.wait()
@@ -56,15 +56,15 @@ def put_data_to_ch():
        local_file.close()
 
        local_file=open("/tmp/file.json","w")
-       local_file.truncate(0)
+       local_file.truncate(0) 
        local_file.write(r)
        local_file.close()
 
 
-       cmd = """cat  /tmp/file.json | clickhouse-client --query='INSERT INTO yury_zenin (item_url, basket_price, item_price, detectedDuplicate,
-                        timestamp, remoteHost, pageViewId, sessionId, detectedCorruption, partyId, location, eventType, item_id, referer,
-                        userAgentName, firstInSession) FORMAT JSONEachRow'"""
-       print('На CH:{}'.format(cmd))
+       cmd = """cat  /tmp/file.json | clickhouse-client --query='INSERT INTO yury_zenin (purchase, item_url, basket_price, item_price, detectedDuplicate,
+			timestamp, remoteHost, pageViewId, sessionId, detectedCorruption, partyId, location, eventType, item_id, referer, 
+			userAgentName, firstInSession) FORMAT JSONEachRow'"""
+       print('РќР° CH:{}'.format(cmd))
        proc_ch = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
        proc_ch.wait()
        stdout_ch, stderr_ch = proc_ch.communicate()
@@ -74,7 +74,7 @@ def put_data_to_ch():
 
        print(stdout_ch)
 
-       proc_stat = Popen("hdfs dfs -rm /opt/gobblin/output/part.task_GobblinKafkaQuickStart_*_0_0.txt || hdfs dfs -touchz {}".format(f.decode("utf-8").replace('/yury.zenin','')), shell=True, stdout=PIPE, stderr=PIPE)
+       proc_stat = Popen("hdfs dfs -rm -skipTrash /opt/gobblin/output/part.task_GobblinKafkaQuickStart_*_0_0.txt || hdfs dfs -touchz {}".format(f.decode("utf-8").replace('/yury.zenin','')), shell=True, stdout=PIPE, stderr=PIPE)
        proc_stat.wait()
        stdout_stat, stderr_stat = proc_stat.communicate()
        if proc_stat.returncode:
@@ -86,5 +86,4 @@ hdfs2ch = PythonOperator(
     python_callable=put_data_to_ch,
     dag=dag,
 )
-
 

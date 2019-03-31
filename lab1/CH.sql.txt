@@ -1,6 +1,6 @@
-CREATE TABLE IF NOT EXISTS yury_zenin
+CREATE TABLE IF NOT EXISTS yury_zenin3
 (
-    timestamp Decimal(16,6),
+    timestamp Decimal(16, 6),
     referer String,
     location String,
     remoteHost String,
@@ -9,15 +9,16 @@ CREATE TABLE IF NOT EXISTS yury_zenin
     pageViewId String,
     eventType String,
     item_id String,
-    item_price Decimal(16,6),
+    item_price Decimal(16, 6),
     item_url String,
     basket_price String,
     detectedDuplicate UInt8,
     detectedCorruption UInt8,
     firstInSession UInt8,
-    userAgentName String
+    userAgentName String,
+    purchase UInt16
 )
 ENGINE = MergeTree()
-PARTITION BY timestamp
+PARTITION BY sessionId
 PRIMARY KEY (timestamp, sessionId)
 ORDER BY (timestamp, sessionId)
